@@ -9,7 +9,6 @@ public class MyJDBC {
 
 
         int choice;
-        double balance = 0;
         boolean InRunning = true;
         boolean runningAcc = true;
 
@@ -74,9 +73,9 @@ public class MyJDBC {
                         System.out.println("Login successful!");
                         System.out.println("Welcome " + fullName);
                         InRunning = false;
+
                         //DISPLAY MENU HERE
                         while (runningAcc) {
-
                             System.out.println("********************");
                             System.out.println("1. Balance ");
                             System.out.println("2. Deposit ");
@@ -93,7 +92,7 @@ public class MyJDBC {
                         switch (choice) {
                             case 1 -> showBalance(connection, inputUsername);
                             case 2 -> deposit(connection, inputUsername);
-                            case 3 -> System.out.println("Withdraw");
+                            case 3 -> withdraw(connection, inputUsername);
                             case 4 -> System.out.println("Transfer");
                             case 5 -> System.out.println("Transaction History");
                             case 6 -> runningAcc = false;
@@ -110,7 +109,7 @@ public class MyJDBC {
                     System.out.println("Invalid action.");
                 }
             } catch (SQLException e) {
-                e.printStackTrace();
+                System.out.println("Error processing deposit: " + e.getMessage());
             }
         }
 
@@ -134,7 +133,7 @@ public class MyJDBC {
             System.out.println("Error retrieving balance: " + e.getMessage());
         }
     }
-    static double deposit(Connection connection, String username) {
+    static void deposit(Connection connection, String username) {
         try {
             // First get current balance
             String query = "SELECT balance FROM USERS WHERE username = ?";
@@ -155,7 +154,7 @@ public class MyJDBC {
 
             if (depositAmount <= 0) {
                 System.out.println("Invalid amount. Deposit must be greater than zero.");
-                return currentBalance;
+                return;
             }
 
             double newBalance = currentBalance + depositAmount;
@@ -164,7 +163,7 @@ public class MyJDBC {
             updateStmt.setDouble(1, newBalance);
             updateStmt.setString(2, username);
 
-            int rowsAffected = updateStmt.executeUpdate();
+            double rowsAffected = updateStmt.executeUpdate();
             if (rowsAffected > 0) {
                 System.out.println("********************");
                 System.out.printf("Deposited: ₱%.2f\n", depositAmount);
@@ -173,11 +172,56 @@ public class MyJDBC {
             } else {
                 System.out.println("Deposit failed.");
             }
-
-            return newBalance;
         } catch (SQLException e) {
             System.out.println("Error processing deposit: " + e.getMessage());
-            return 0;
+        }
+    }
+    static void withdraw(Connection connection, String username) {
+        try {
+            String query = "SELECT balance FROM USERS WHERE username = ?";
+            PreparedStatement draw = connection.prepareStatement(query);
+            draw.setString(1, username);
+
+            ResultSet resultSet = draw.executeQuery();
+            double currentBalance;
+            if (resultSet.next()) {
+                currentBalance = resultSet.getDouble("balance");
+            }else {
+                System.out.println("No balance information found.");
+                return;
+            }
+            // Ask for withdraw amount
+            System.out.println("********************");
+            System.out.print("Enter amount to withdraw: ₱");
+            double withdrawAmount = scanner.nextDouble();
+            scanner.nextLine(); // Clear nextline
+
+            if (withdrawAmount <= 0) {
+                System.out.println("Invalid amount. Withdraw must be greater than zero.");
+                return;
+            } else if (withdrawAmount > currentBalance) {
+                System.out.println("INSUFFICIENT FUNDS");
+                return;
+            }
+
+            double newBalance = currentBalance - withdrawAmount;
+            String updateQuery = "UPDATE USERS SET balance = ? WHERE username = ?";
+            PreparedStatement updateStmt = connection.prepareStatement(updateQuery);
+            updateStmt.setDouble(1, newBalance);
+            updateStmt.setString(2, username);
+            double rowsAffected = updateStmt.executeUpdate();
+
+            if (rowsAffected > 0) {
+                System.out.println("********************");
+                System.out.printf("Deposited: ₱%.2f\n", withdrawAmount);
+                System.out.printf("New balance: ₱%.2f\n", newBalance);
+                System.out.println("********************");
+            } else  {
+                System.out.println("Withdraw failed.");
+            }
+
+        } catch (SQLException e) {
+            System.out.println("Error processing withdraw: " + e.getMessage());
         }
     }
 
